@@ -126,27 +126,7 @@ async function loadState() {
   if (firstLoad) { hideSkeleton(); firstLoad = false; }
 }
 
-function renderAgents(agents) {
-  const row = document.getElementById('agentsRow');
-  row.innerHTML = '';
-  Object.entries(agents).forEach(([key, a]) => {
-    const isActive = a.status === 'active' || a.status === 'working';
-    const statusClass = isActive ? 'active' : a.status === 'blocked' ? 'blocked' : 'idle';
-    const card = document.createElement('div');
-    card.className = 'agent-card glass-card' + (isActive ? ' agent-active' : '');
-    card.innerHTML = `
-      <div class="agent-top">
-        <span class="agent-emoji">${a.emoji || '🤖'}</span>
-        <span class="agent-name">${a.name || key}</span>
-      </div>
-      <div class="agent-role">${a.role || '—'}</div>
-      <div class="agent-status"><span class="status-dot ${statusClass}"></span><span>${a.status || 'idle'}</span></div>
-      <div class="agent-task" title="${a.task || ''}">${a.task || '—'}</div>
-      <div class="agent-time" id="elapsed-${key}">${statusClass !== 'idle' ? formatElapsed(a.startedAt) : '—'}</div>
-    `;
-    row.appendChild(card);
-  });
-}
+// renderAgents function moved to bottom with agent panel functionality
 
 /* === Tasks / Kanban === */
 const EMPTY_MESSAGES = {
@@ -1057,9 +1037,319 @@ function closeModal(modalId) {
   });
 });
 
+/* === Agent Side Panel === */
+let currentAgentPanelKey = null;
+let agentLiveEventSource = null;
+
+function openAgentPanel(agentKey) {
+  currentAgentPanelKey = agentKey;
+  const panel = document.getElementById('agentPanel');
+  const overlay = document.getElementById('agentPanelOverlay');
+  
+  // Add agent-specific class for styling
+  panel.className = `agent-panel agent-${agentKey}`;
+  
+  panel.classList.add('open');
+  overlay.classList.add('open');
+  
+  // Load agent data
+  loadAgentActivity(agentKey);
+  loadAgentCode(agentKey);
+  loadAgentPerformance(agentKey);
+  loadImprovements();
+  
+  // Start live updates if agent is active
+  if (state && state.agents && state.agents[agentKey]) {
+    const agentStatus = state.agents[agentKey].status;
+    if (agentStatus === 'active' || agentStatus === 'working') {
+      startAgentLiveUpdates(agentKey);
+    }
+  }
+}
+
+function closeAgentPanel() {
+  const panel = document.getElementById('agentPanel');
+  const overlay = document.getElementById('agentPanelOverlay');
+  
+  panel.classList.remove('open');
+  overlay.classList.remove('open');
+  
+  currentAgentPanelKey = null;
+  
+  // Stop live updates
+  if (agentLiveEventSource) {
+    agentLiveEventSource.close();
+    agentLiveEventSource = null;
+  }
+}
+
+async function loadAgentActivity(agentKey) {
+  const data = await fetchJSON(`/api/agent/${agentKey}/activity` + QS);
+  if (!data) return;
+  
+  // Update header
+  document.getElementById('agentPanelEmoji').textContent = data.emoji || '🤖';
+  document.getElementById('agentPanelName').textContent = data.name || agentKey;
+  document.getElementById('agentPanelRole').textContent = AGENT_META[agentKey]?.role || 'Agent';
+  document.getElementById('agentPanelStatus').textContent = data.status || 'idle';
+  
+  // Update status dot
+  const statusDot = document.getElementById('agentPanelStatusDot');
+  const isActive = data.status === 'active' || data.status === 'working';
+  statusDot.className = `status-dot ${isActive ? 'active pulsing' : data.status === 'blocked' ? 'blocked' : 'idle'}`;
+  
+  // Update current task
+  if (data.current_task) {
+    document.getElementById('currentTaskId').textContent = data.current_task.id || '';
+    document.getElementById('currentTaskTitle').textContent = data.current_task.title || '';
+    document.getElementById('currentTaskProgress').style.width = 
+      data.current_task.status === 'in_qa' ? '80%' : 
+      data.current_task.status === 'in_dev' ? '50%' : '20%';
+  } else {
+    document.getElementById('currentTaskId').textContent = 'No active task';
+    document.getElementById('currentTaskTitle').textContent = 'Agent is idle';
+    document.getElementById('currentTaskProgress').style.width = '0%';
+  }
+  
+  // Update activity feed
+  const feedContainer = document.getElementById('agentActivityFeed');
+  if (data.recent_log && data.recent_log.length > 0) {
+    feedContainer.innerHTML = '';
+    data.recent_log.slice(-8).reverse().forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'activity-item';
+      
+      let timestamp = '—';
+      if (entry.ts) {
+        try {
+          const date = new Date(entry.ts);
+          timestamp = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {}
+      }
+      
+      item.innerHTML = `
+        <div class="activity-timestamp">${timestamp}</div>
+        <div class="activity-detail">${entry.detail || entry.action || ''}</div>
+      `;
+      feedContainer.appendChild(item);
+    });
+  } else {
+    feedContainer.innerHTML = '<div class="empty-state">No recent activity</div>';
+  }
+  
+  // Update performance stats
+  document.getElementById('tasksCompleted').textContent = data.stats.tasks_completed || '0';
+  document.getElementById('avgDuration').textContent = data.stats.avg_duration || '—';
+  document.getElementById('bugsCaused').textContent = data.stats.bugs_caused || '0';
+  document.getElementById('linesWritten').textContent = data.stats.lines_written ? 
+    data.stats.lines_written.toLocaleString() : '—';
+}
+
+async function loadAgentCode(agentKey) {
+  const data = await fetchJSON(`/api/agent/${agentKey}/code` + QS);
+  if (!data) return;
+  
+  const container = document.getElementById('codeFilesList');
+  if (data.files && data.files.length > 0) {
+    container.innerHTML = '';
+    data.files.slice(0, 10).forEach(file => {
+      const item = document.createElement('div');
+      item.className = 'code-file-item';
+      item.innerHTML = `
+        <div class="code-file-header">
+          <div class="code-file-path">${file.path}</div>
+          <div class="code-file-lines">${file.lines} lines</div>
+        </div>
+        <div class="code-file-preview">
+          <pre class="code-preview"><code>${highlightCode(file.preview)}</code></pre>
+        </div>
+      `;
+      
+      item.addEventListener('click', () => {
+        item.classList.toggle('expanded');
+      });
+      
+      container.appendChild(item);
+    });
+  } else {
+    container.innerHTML = '<div class="empty-state">No code files found</div>';
+  }
+}
+
+function highlightCode(code) {
+  if (!code) return '';
+  
+  // Simple syntax highlighting
+  return code
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/(["'`][^"'`]*["'`])/g, '<span class="string">$1</span>')
+    .replace(/\b(const|let|var|function|class|interface|type|import|export|from|async|await|return|if|else|for|while|try|catch)\b/g, '<span class="keyword">$1</span>')
+    .replace(/(\/\/[^\n]*)/g, '<span class="comment">$1</span>')
+    .replace(/\b([A-Z][a-zA-Z0-9]*)\b/g, '<span class="type">$1</span>')
+    .replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g, '<span class="function">$1</span>(');
+}
+
+async function loadAgentPerformance(agentKey) {
+  const data = await fetchJSON(`/api/agents/performance` + QS);
+  if (!data || !data.agents[agentKey]) return;
+  
+  const agentPerf = data.agents[agentKey];
+  
+  // Update trend indicators
+  const trends = agentPerf.trends || {};
+  updateTrendIndicator('tasksTrend', trends.speed);
+  updateTrendIndicator('qualityTrend', trends.quality);
+  
+  // Update sprint comparison bars
+  if (agentPerf.sprints && agentPerf.sprints.length > 0) {
+    updateSprintBars('tasksSprintBars', agentPerf.sprints.map(s => s.tasks));
+    updateSprintBars('qualitySprintBars', agentPerf.sprints.map(s => s.bugs === 0 ? 10 : Math.max(1, 10 - s.bugs)));
+  }
+}
+
+function updateTrendIndicator(elementId, trend) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  
+  el.className = `trend-indicator ${trend}`;
+  el.textContent = trend === 'improving' ? '↑' : trend === 'declining' ? '↓' : '→';
+}
+
+function updateSprintBars(containerId, values) {
+  const container = document.getElementById(containerId);
+  if (!container || !values.length) return;
+  
+  const maxValue = Math.max(...values);
+  container.innerHTML = '';
+  
+  values.forEach((value, index) => {
+    const bar = document.createElement('div');
+    bar.className = 'sprint-bar';
+    bar.style.height = `${(value / maxValue) * 100}%`;
+    bar.innerHTML = `<div class="sprint-bar-label">S${index + 1}</div>`;
+    container.appendChild(bar);
+  });
+}
+
+async function loadImprovements() {
+  const data = await fetchJSON(`/api/sprint/improvements` + QS);
+  if (!data) return;
+  
+  const container = document.getElementById('improvementBacklog');
+  if (data.improvements && data.improvements.length > 0) {
+    container.innerHTML = '';
+    data.improvements.slice(0, 5).forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'improvement-item';
+      el.innerHTML = `
+        <div class="improvement-text">${item.insight}</div>
+        <div class="improvement-status ${item.status}">${item.status.toUpperCase()}</div>
+      `;
+      container.appendChild(el);
+    });
+  } else {
+    container.innerHTML = '<div class="empty-state">No improvements tracked</div>';
+  }
+  
+  // Also load insights for the overview tab
+  const overviewContainer = document.getElementById('overviewInsightsList');
+  if (overviewContainer && data.improvements && data.improvements.length > 0) {
+    overviewContainer.innerHTML = '';
+    data.improvements.slice(0, 5).forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'insight-item';
+      el.innerHTML = `
+        <div class="insight-text">${item.insight}</div>
+        <div class="insight-status ${item.status}">${item.status.toUpperCase()}</div>
+      `;
+      overviewContainer.appendChild(el);
+    });
+  }
+}
+
+function startAgentLiveUpdates(agentKey) {
+  if (agentLiveEventSource) {
+    agentLiveEventSource.close();
+  }
+  
+  agentLiveEventSource = new EventSource(`/api/agent/${agentKey}/live` + QS);
+  
+  agentLiveEventSource.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      
+      if (data.event === 'no_activity' || data.event === 'agent_idle') {
+        agentLiveEventSource.close();
+        agentLiveEventSource = null;
+        return;
+      }
+      
+      if (data.event === 'status_update') {
+        // Update status in real-time
+        if (currentAgentPanelKey === agentKey) {
+          document.getElementById('agentPanelStatus').textContent = data.status || 'idle';
+          
+          const statusDot = document.getElementById('agentPanelStatusDot');
+          const isActive = data.status === 'active' || data.status === 'working';
+          statusDot.className = `status-dot ${isActive ? 'active pulsing' : data.status === 'blocked' ? 'blocked' : 'idle'}`;
+          
+          // Update task if changed
+          if (data.task) {
+            document.getElementById('currentTaskTitle').textContent = data.task;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing agent live update:', e);
+    }
+  };
+  
+  agentLiveEventSource.onerror = function() {
+    agentLiveEventSource.close();
+    agentLiveEventSource = null;
+  };
+}
+
+// Event listeners for agent panel
+document.getElementById('agentPanelClose').addEventListener('click', closeAgentPanel);
+document.getElementById('agentPanelOverlay').addEventListener('click', closeAgentPanel);
+
+// Make agent cards clickable
+function renderAgents(agents) {
+  const row = document.getElementById('agentsRow');
+  row.innerHTML = '';
+  Object.entries(agents).forEach(([key, a]) => {
+    const isActive = a.status === 'active' || a.status === 'working';
+    const statusClass = isActive ? 'active' : a.status === 'blocked' ? 'blocked' : 'idle';
+    const card = document.createElement('div');
+    card.className = 'agent-card glass-card' + (isActive ? ' agent-active' : '');
+    card.innerHTML = `
+      <div class="agent-top">
+        <span class="agent-emoji">${a.emoji || '🤖'}</span>
+        <span class="agent-name">${a.name || key}</span>
+      </div>
+      <div class="agent-role">${a.role || '—'}</div>
+      <div class="agent-status"><span class="status-dot ${statusClass}"></span><span>${a.status || 'idle'}</span></div>
+      <div class="agent-task" title="${a.task || ''}">${a.task || '—'}</div>
+      <div class="agent-time" id="elapsed-${key}">${statusClass !== 'idle' ? formatElapsed(a.startedAt) : '—'}</div>
+    `;
+    
+    // Add click handler for agent panel
+    card.addEventListener('click', () => openAgentPanel(key));
+    
+    row.appendChild(card);
+  });
+}
+
 /* === Enhanced Polling === */
 async function poll() {
   await Promise.all([loadState(), loadTasks(), loadSprintStatus()]);
+  
+  // Load insights on first poll
+  if (firstLoad) {
+    loadImprovements();
+  }
 }
 poll();
 setInterval(poll, 5000);

@@ -122,6 +122,16 @@
         <div id="sprintVelocity" class="velocity-stats"></div>
       </div>
     </div>
+
+    <!-- Add insights section to overview -->
+    <div class="insights-section">
+      <div class="insights-header">
+        <span class="insights-title">📈 Insights</span>
+      </div>
+      <div class="insights-list" id="overviewInsightsList">
+        <!-- Insights will be populated here -->
+      </div>
+    </div>
   </section>
 
   <!-- Activity Tab -->
@@ -169,6 +179,114 @@
   </section>
 
 </main>
+
+<!-- Agent Side Panel -->
+<div class="agent-panel-overlay" id="agentPanelOverlay"></div>
+<div class="agent-panel" id="agentPanel">
+  <div class="agent-panel-header">
+    <button class="agent-panel-close" id="agentPanelClose">✕</button>
+    <div class="agent-panel-title">
+      <span class="agent-panel-emoji" id="agentPanelEmoji">🤖</span>
+      <span class="agent-panel-name" id="agentPanelName">Agent</span>
+    </div>
+    <div class="agent-panel-role" id="agentPanelRole">Role</div>
+    <div class="agent-panel-status">
+      <span class="status-dot" id="agentPanelStatusDot"></span>
+      <span id="agentPanelStatus">idle</span>
+    </div>
+  </div>
+  
+  <div class="agent-panel-content">
+    <!-- Current Task Section -->
+    <div class="agent-panel-section">
+      <div class="agent-panel-section-title">Current Task</div>
+      <div class="current-task-card" id="currentTaskCard">
+        <div class="current-task-id" id="currentTaskId">No active task</div>
+        <div class="current-task-title" id="currentTaskTitle">Agent is idle</div>
+        <div class="current-task-progress">
+          <div class="current-task-progress-fill" id="currentTaskProgress" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Code Files Section -->
+    <div class="agent-panel-section">
+      <div class="agent-panel-section-title">Code Files</div>
+      <div class="code-files-list" id="codeFilesList">
+        <div class="empty-state">Loading files...</div>
+      </div>
+    </div>
+    
+    <!-- Activity Feed Section -->
+    <div class="agent-panel-section">
+      <div class="agent-panel-section-title">Activity Feed</div>
+      <div class="activity-feed" id="agentActivityFeed">
+        <div class="empty-state">Loading activity...</div>
+      </div>
+    </div>
+    
+    <!-- Performance Stats Section -->
+    <div class="agent-panel-section">
+      <div class="agent-panel-section-title">Performance Stats</div>
+      <div class="performance-stats" id="performanceStats">
+        <div class="performance-stat">
+          <div class="performance-stat-value" id="tasksCompleted">—</div>
+          <div class="performance-stat-label">Tasks Done</div>
+        </div>
+        <div class="performance-stat">
+          <div class="performance-stat-value" id="avgDuration">—</div>
+          <div class="performance-stat-label">Avg Time</div>
+        </div>
+        <div class="performance-stat">
+          <div class="performance-stat-value" id="bugsCaused">—</div>
+          <div class="performance-stat-label">Bugs Caused</div>
+        </div>
+        <div class="performance-stat">
+          <div class="performance-stat-value" id="linesWritten">—</div>
+          <div class="performance-stat-label">Lines Written</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Performance Section (Sprint Comparison) -->
+    <div class="agent-panel-section">
+      <div class="agent-panel-section-title">Performance Trends</div>
+      <div class="performance-charts" id="performanceCharts">
+        <div class="sprint-comparison">
+          <div class="sprint-comparison-title">
+            Tasks Completed <span class="trend-indicator improving" id="tasksTrend">↑</span>
+          </div>
+          <div class="sprint-bars" id="tasksSprintBars"></div>
+        </div>
+        
+        <div class="sprint-comparison">
+          <div class="sprint-comparison-title">
+            Quality Score <span class="trend-indicator improving" id="qualityTrend">↑</span>
+          </div>
+          <div class="sprint-bars" id="qualitySprintBars"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Improvement Backlog Section -->
+    <div class="agent-panel-section">
+      <div class="agent-panel-section-title">Improvement Backlog</div>
+      <div class="improvement-backlog" id="improvementBacklog">
+        <div class="empty-state">Loading improvements...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Insights Section for Overview Tab -->
+<div class="insights-section" id="insightsSection" style="display: none;">
+  <div class="insights-header">
+    <span class="insights-title">📈 Insights</span>
+  </div>
+  <div class="insights-list" id="insightsList">
+    <!-- Insights will be populated here -->
+  </div>
+</div>
 
 <!-- Meeting Notification Toast -->
 <div class="meeting-notification" id="meetingNotification">
