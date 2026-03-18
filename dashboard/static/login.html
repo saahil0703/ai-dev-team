@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔐 LOGIN — AI Dev Team Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e1a;--surface:rgba(15,20,40,0.9);--border:rgba(0,212,255,0.15);--cyan:#00D4FF;--green:#00FF88;--amber:#FFB800;--red:#FF3366;--text:#e0e6ed;--text-dim:rgba(224,230,237,0.5)}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+/* Grid background */
+.grid-bg{position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0;animation:grid-drift 20s linear infinite}
+@keyframes grid-drift{from{transform:translate(0,0)}to{transform:translate(60px,60px)}}
+
+.scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:1}
+
+/* Login card */
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:400px;max-width:90vw;backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 80px rgba(0,212,255,0.05);position:relative;z-index:2;animation:card-entrance 1s ease-out}
+@keyframes card-entrance{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.login-header{text-align:center;margin-bottom:30px}
+.login-header h1{font-family:'Orbitron',monospace;font-size:24px;font-weight:700;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;letter-spacing:2px}
+.login-header p{color:var(--text-dim);font-size:14px}
+
+/* Form styles */
+.login-form{display:flex;flex-direction:column;gap:20px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-family:'Orbitron',monospace;font-size:12px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.form-input{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:16px;transition:border-color 0.3s,box-shadow 0.3s}
+.form-input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 20px rgba(0,212,255,0.1)}
+.form-input::placeholder{color:var(--text-dim)}
+
+/* Login button */
+.login-btn{background:linear-gradient(135deg,var(--cyan),var(--green));color:var(--bg);border:none;border-radius:12px;padding:14px 20px;font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:transform 0.3s,box-shadow 0.3s;text-transform:uppercase}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,212,255,0.3)}
+.login-btn:active{transform:translateY(0)}
+.login-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
+/* Error message */
+.error-message{background:rgba(255,51,102,0.1);border:1px solid rgba(255,51,102,0.3);border-radius:8px;padding:12px;color:var(--red);font-size:14px;text-align:center;margin-bottom:20px;display:none}
+
+/* Back link */
+.back-link{position:absolute;top:20px;left:20px;color:var(--text-dim);text-decoration:none;font-size:14px;transition:color 0.3s;z-index:3}
+.back-link:hover{color:var(--cyan)}
+
+/* Clock */
+.clock{position:fixed;bottom:20px;right:24px;color:var(--text-dim);font-family:'Orbitron',monospace;font-size:12px;z-index:10}
+
+/* Loading state */
+.loading{display:none;text-align:center;color:var(--cyan);font-family:'Orbitron',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+.loading:before{content:'';display:inline-block;width:16px;height:16px;border:2px solid var(--cyan);border-radius:50%;border-top-color:transparent;animation:spin 1s linear infinite;margin-right:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Success animation */
+.success{display:none;text-align:center;color:var(--green);font-family:'Orbitron',monospace;font-size:14px}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div class="scanlines"></div>
+
+<a href="/" class="back-link">← Back</a>
+
+<div class="login-card">
+  <div class="login-header">
+    <h1>🔐 ACCESS CONTROL</h1>
+    <p>Enter invite code to access the AI dev team platform</p>
+  </div>
+
+  <div class="error-message" id="errorMessage">Invalid invite code. Please try again.</div>
+  
+  <form class="login-form" id="loginForm">
+    <div class="form-group">
+      <label class="form-label" for="inviteCode">Invite Code</label>
+      <input 
+        type="password" 
+        id="inviteCode" 
+        class="form-input" 
+        placeholder="Enter your invite code"
+        autocomplete="current-password"
+        required
+      >
+    </div>
+    
+    <button type="submit" class="login-btn" id="loginBtn">
+      Authenticate
+    </button>
+  </form>
+
+  <div class="loading" id="loading">Authenticating...</div>
+  <div class="success" id="success">✅ Access granted! Redirecting...</div>
+</div>
+
+<div class="clock" id="clock">--:--:--</div>
+
+<script>
+// Clock
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US',{hour12:false});
+}
+setInterval(updateClock,1000);
+updateClock();
+
+// Login form
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const inviteCode = document.getElementById('inviteCode').value;
+  const errorMessage = document.getElementById('errorMessage');
+  const loginForm = document.getElementById('loginForm');
+  const loading = document.getElementById('loading');
+  const success = document.getElementById('success');
+  const loginBtn = document.getElementById('loginBtn');
+  
+  // Hide error message
+  errorMessage.style.display = 'none';
+  
+  // Show loading state
+  loginForm.style.display = 'none';
+  loading.style.display = 'block';
+  
+  try {
+    const response = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ invite_code: inviteCode })
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok) {
+      // Show success and redirect
+      loading.style.display = 'none';
+      success.style.display = 'block';
+      
+      setTimeout(() => {
+        const redirectUrl = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
+        window.location.href = redirectUrl;
+      }, 1500);
+      
+    } else {
+      // Show error
+      loading.style.display = 'none';
+      loginForm.style.display = 'flex';
+      errorMessage.style.display = 'block';
+      errorMessage.textContent = result.detail || 'Authentication failed';
+      
+      // Focus input for retry
+      document.getElementById('inviteCode').select();
+    }
+    
+  } catch (error) {
+    // Network or other error
+    loading.style.display = 'none';
+    loginForm.style.display = 'flex';
+    errorMessage.style.display = 'block';
+    errorMessage.textContent = 'Connection error. Please try again.';
+    console.error('Login error:', error);
+  }
+});
+
+// Auto-focus input
+document.getElementById('inviteCode').focus();
+
+// Check if already authenticated
+fetch('/api/auth/status')
+  .then(response => response.json())
+  .then(data => {
+    if (data.authenticated) {
+      window.location.href = '/dashboard';
+    }
+  })
+  .catch(() => {
+    // Ignore errors - user is not authenticated
+  });
+</script>
+</body>
+</html>

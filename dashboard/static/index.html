@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<!-- Top Bar -->
+<header class="top-bar">
+  <div class="top-bar-left">
+    <a href="/" class="back-link">←</a>
+    <h1 class="logo">MISSION CONTROL</h1>
+    <span class="subtitle" id="projectName">—</span>
+  </div>
+  <div class="top-bar-right">
+    <button class="action-btn" id="startSprintBtn" onclick="startSprint()">🚀 Start Sprint</button>
+    <button class="action-btn" id="newMeetingBtn" onclick="startMeeting()">📋 New Meeting</button>
+    <span class="badge badge-primary" id="sprintBadge">Sprint —</span>
+    <span class="badge badge-outline" id="phaseBadge">—</span>
+    <div class="progress-ring-wrap" id="progressRing">
+      <svg viewBox="0 0 36 36" class="progress-ring">
+        <circle class="progress-ring-bg" cx="18" cy="18" r="15.9"/>
+        <circle class="progress-ring-fill" cx="18" cy="18" r="15.9" id="progressCircle"/>
+      </svg>
+      <span class="progress-ring-text" id="progressText">0%</span>
+    </div>
+    <span class="clock mono" id="clock">00:00:00</span>
+    <span class="live-dot"></span>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<!-- Tab Bar -->
+<nav class="tab-bar">
+  <button class="tab active" data-tab="overview">Overview</button>
+  <button class="tab" data-tab="activity">Activity</button>
+  <button class="tab" data-tab="meetings">Meetings</button>
+  <button class="tab" data-tab="live"><span class="live-tab-dot" id="liveTabDot"></span>🔴 Live</button>
+  <button class="tab" data-tab="docs">Docs</button>
+</nav>
+
+<!-- Tab Content -->
+<main class="tab-content">
+
+  <!-- Overview Tab -->
+  <section class="tab-pane active" id="tab-overview">
+    <!-- Loading skeleton -->
+    <div class="loading-skeleton" id="loadingSkeleton">
+      <div class="skeleton-row">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+      <div class="skeleton-block"></div>
+    </div>
+
+    <div class="agents-row" id="agentsRow"></div>
+
+    <div class="kanban" id="kanban">
+      <div class="kanban-col" data-col="backlog">
+        <div class="kanban-header"><span>BACKLOG</span><span class="kanban-count" id="count-backlog">0</span></div>
+        <div class="kanban-cards" id="col-backlog"></div>
+      </div>
+      <div class="kanban-col" data-col="in_dev">
+        <div class="kanban-header"><span>IN DEV</span><span class="kanban-count" id="count-in_dev">0</span></div>
+        <div class="kanban-cards" id="col-in_dev"></div>
+      </div>
+      <div class="kanban-col" data-col="in_qa">
+        <div class="kanban-header"><span>IN QA</span><span class="kanban-count" id="count-in_qa">0</span></div>
+        <div class="kanban-cards" id="col-in_qa"></div>
+      </div>
+      <div class="kanban-col" data-col="done">
+        <div class="kanban-header"><span>DONE</span><span class="kanban-count" id="count-done">0</span></div>
+        <div class="kanban-cards" id="col-done"></div>
+      </div>
+    </div>
+
+    <div class="metrics-row" id="metricsRow"></div>
+
+    <!-- Sprint Stats Section (replaces oversized burndown) -->
+    <div class="sprint-stats-grid">
+      <div class="glass-card sprint-stat-card">
+        <h3 class="section-title">Sprint Burndown</h3>
+        <svg id="burndownChart" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="glass-card sprint-stat-card">
+        <h3 class="section-title">Agent Leaderboard</h3>
+        <div id="agentLeaderboard" class="leaderboard"></div>
+      </div>
+      <div class="glass-card sprint-stat-card">
+        <h3 class="section-title">Completion Timeline</h3>
+        <div id="completionTimeline" class="timeline-wrap"></div>
+      </div>
+      <div class="glass-card sprint-stat-card">
+        <h3 class="section-title">Sprint Velocity</h3>
+        <div id="sprintVelocity" class="velocity-stats"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Activity Tab -->
+  <section class="tab-pane" id="tab-activity">
+    <div class="full-panel">
+      <h2 class="section-title">Live Activity Feed</h2>
+      <div class="activity-list" id="activityFull"></div>
+    </div>
+  </section>
+
+  <!-- Meetings Tab -->
+  <section class="tab-pane" id="tab-meetings">
+    <div class="split-panel">
+      <div class="split-list" id="meetingsList"></div>
+      <div class="split-content markdown-body" id="meetingsContent">
+        <div class="empty-state">Select a meeting to view</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Tab -->
+  <section class="tab-pane" id="tab-live">
+    <div class="spy-container">
+      <div class="spy-status-bar" id="spyStatusBar">
+        <span class="spy-status-text" id="spyStatusText">MONITORING FOR MEETINGS...</span>
+      </div>
+      <div class="spy-messages" id="spyMessages">
+        <div class="spy-empty" id="spyEmpty">
+          <div class="radar-sweep"></div>
+          <span>MONITORING FOR MEETINGS...</span>
+        </div>
+      </div>
+      <div class="spy-summary glass-card" id="spySummary" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- Docs Tab -->
+  <section class="tab-pane" id="tab-docs">
+    <div class="split-panel">
+      <div class="split-list" id="docsList"></div>
+      <div class="split-content markdown-body" id="docsContent">
+        <div class="empty-state">Select a document to view</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Task Detail Modal -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal-card glass-card">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "python run.py server"
+healthcheckPath = "/api/projects"
+restartPolicyType = "ON_FAILURE"
