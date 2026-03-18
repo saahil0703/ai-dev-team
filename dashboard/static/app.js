@@ -7,6 +7,7 @@ const QS = PROJECT_SLUG ? '?project=' + PROJECT_SLUG : '';
 let state = null;
 let allTasks = null;
 let firstLoad = true;
+let selectedSprint = null;
 
 /* === Tabs === */
 document.querySelectorAll('.tab').forEach(tab => {
@@ -19,6 +20,24 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'meetings') loadMeetings();
     if (tab.dataset.tab === 'docs') loadDocs();
   });
+});
+
+/* === Sprint Filter === */
+document.getElementById('sprintFilter').addEventListener('change', (e) => {
+  selectedSprint = e.target.value === '' ? null : parseInt(e.target.value);
+  loadTasks(); // Reload tasks with new sprint filter
+});
+
+/* === Meeting Notification === */
+document.getElementById('meetingNotification').addEventListener('click', () => {
+  // Switch to Live tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-tab="live"]').classList.add('active');
+  document.getElementById('tab-live').classList.add('active');
+  
+  // Hide the notification after clicking
+  document.getElementById('meetingNotification').classList.remove('show');
 });
 
 /* === Clock === */
@@ -103,6 +122,7 @@ async function loadState() {
   renderMetrics(data.metrics || {});
   renderBurndown(data.metrics || {});
   updateElapsed();
+  updateSprintFilter();
   if (firstLoad) { hideSkeleton(); firstLoad = false; }
 }
 
@@ -137,7 +157,11 @@ const EMPTY_MESSAGES = {
 };
 
 async function loadTasks() {
-  const data = await fetchJSON('/api/tasks' + QS);
+  let url = '/api/tasks' + QS;
+  if (selectedSprint !== null) {
+    url += (QS ? '&' : '?') + `sprint=${selectedSprint}`;
+  }
+  const data = await fetchJSON(url);
   if (!data) return;
   allTasks = data;
   ['backlog', 'in_dev', 'in_qa', 'done'].forEach(col => {
@@ -165,6 +189,11 @@ async function loadTasks() {
   renderLeaderboard(data);
   renderTimeline(data);
   renderVelocity(data);
+  
+  // Update sprint controls based on task completion
+  if (currentSprintStatus) {
+    updateSprintControls(currentSprintStatus);
+  }
 }
 
 /* === Task Modal === */
@@ -378,7 +407,7 @@ function cleanMeetingName(name, path) {
 }
 
 async function loadMeetingContent(path) {
-  const data = await fetchJSON('/api/meeting/' + encodeURIComponent(path) + QS);
+  const data = await fetchJSON('/api/meeting-content/' + encodeURIComponent(path) + QS);
   if (!data) return;
   document.getElementById('meetingsContent').innerHTML = renderMarkdown(data.content || '');
 }
@@ -567,172 +596,470 @@ function onMeetingEnded() {
   spyMeetingStarted = null;
 }
 
+let latestMeetingLoaded = false;
+
+async function loadLatestMeeting() {
+  if (latestMeetingLoaded) return;
+  const data = await fetchJSON('/api/meeting/latest' + QS);
+  if (!data || !data.messages || data.messages.length === 0) return;
+  latestMeetingLoaded = true;
+  const container = document.getElementById('spyMessages');
+  const empty = document.getElementById('spyEmpty');
+  if (empty) empty.style.display = 'none';
+  container.innerHTML = '';
+  const statusBar = document.getElementById('spyStatusBar');
+  statusBar.classList.remove('is-live');
+  document.getElementById('spyStatusText').textContent = '📋 LAST MEETING — ' + (data.name || 'Unknown');
+  document.getElementById('spySummary').style.display = 'none';
+  data.messages.forEach(msg => appendSpyMessage(msg));
+}
+
 async function pollMeetingActive() {
   const data = await fetchJSON('/api/meeting/active' + QS);
   if (!data) return;
   const dot = document.getElementById('liveTabDot');
   const statusBar = document.getElementById('spyStatusBar');
+  const notification = document.getElementById('meetingNotification');
+  
   if (data.active && !spyActive) {
     spyActive = true;
+    latestMeetingLoaded = false;
     spyMeetingStarted = data.started;
     dot.classList.add('active');
     statusBar.classList.add('is-live');
     document.getElementById('spyStatusText').textContent = '● LIVE — ' + data.lines + ' messages';
     document.getElementById('spySummary').style.display = 'none';
+    
+    // Show meeting notification
+    notification.classList.add('show');
+    
     // Reset messages area
     const container = document.getElementById('spyMessages');
     container.innerHTML = '';
     const empty = document.getElementById('spyEmpty');
-    if (empty) container.appendChild(empty);
+    if (empty) empty.style.display = 'none';
     spyMessageCount = 0;
     spyParticipants.clear();
     connectLiveStream();
-    // Auto-switch to live tab
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    document.querySelector('[data-tab="live"]').classList.add('active');
-    document.getElementById('tab-live').classList.add('active');
   } else if (data.active && spyActive) {
     document.getElementById('spyStatusText').textContent = '● LIVE — ' + data.lines + ' messages';
   } else if (!data.active) {
     dot.classList.remove('active');
-    if (spyActive) onMeetingEnded();
+    notification.classList.remove('show');
+    if (spyActive) {
+      onMeetingEnded();
+      latestMeetingLoaded = false;
+    }
+    // Load latest meeting transcript for review
+    loadLatestMeeting();
   }
 }
 setInterval(pollMeetingActive, 3000);
 pollMeetingActive();
 
-/* === Sprint and Meeting Control === */
-async function startSprint() {
-  const goals = prompt("Enter sprint goals (comma-separated):");
-  if (!goals) return;
+/* === Sprint Controls === */
+let currentSprintStatus = null;
+
+// Sprint control button references
+const pauseBtn = document.getElementById('pauseBtn');
+const resumeBtn = document.getElementById('resumeBtn');
+const completeBtn = document.getElementById('completeBtn');
+const newSprintBtn = document.getElementById('newSprintBtn');
+
+// Initially hide all sprint controls
+[pauseBtn, resumeBtn, completeBtn, newSprintBtn].forEach(btn => btn.style.display = 'none');
+
+// Modal references
+const sprintCompleteModal = document.getElementById('sprintCompleteModal');
+const newSprintModal = document.getElementById('newSprintModal');
+
+// Add event listeners
+pauseBtn.addEventListener('click', pauseSprint);
+resumeBtn.addEventListener('click', resumeSprint);
+completeBtn.addEventListener('click', openCompleteModal);
+newSprintBtn.addEventListener('click', openNewSprintModal);
+
+// Modal close handlers
+document.getElementById('completeModalClose').addEventListener('click', () => closeModal('sprintCompleteModal'));
+document.getElementById('newSprintModalClose').addEventListener('click', () => closeModal('newSprintModal'));
+document.getElementById('cancelNewSprintBtn').addEventListener('click', () => closeModal('newSprintModal'));
+
+// Sprint action handlers
+document.getElementById('completeOnlyBtn').addEventListener('click', completeSprint);
+document.getElementById('completeAndNewBtn').addEventListener('click', completeAndStartNew);
+document.getElementById('startSprintBtn').addEventListener('click', createNewSprint);
+
+// Task builder handlers
+document.getElementById('addTaskBtn').addEventListener('click', addTaskRow);
+
+async function loadSprintStatus() {
+  const data = await fetchJSON('/api/sprint/status' + QS);
+  if (!data) return;
   
-  const btn = document.getElementById('startSprintBtn');
-  btn.disabled = true;
-  btn.textContent = "🔄 Starting...";
+  currentSprintStatus = data;
+  updateSprintControls(data);
+}
+
+function updateSprintControls(status) {
+  // Hide all buttons first
+  [pauseBtn, resumeBtn, completeBtn, newSprintBtn].forEach(btn => btn.style.display = 'none');
   
+  const sprintStatus = status.status || 'idle';
+  const isActiveSprint = status.sprint > 0;
+  
+  if (!isActiveSprint || sprintStatus === 'idle') {
+    // No active sprint - show New Sprint button
+    newSprintBtn.style.display = 'block';
+  } else if (sprintStatus === 'active') {
+    // Active sprint - show Pause button always, Complete button conditionally
+    pauseBtn.style.display = 'block';
+    pauseBtn.classList.add('pulsing');
+    resumeBtn.classList.remove('dimmed');
+    
+    // Show Complete Sprint button if all dev tasks are done
+    if (areAllDevTasksComplete()) {
+      completeBtn.style.display = 'block';
+    }
+  } else if (sprintStatus === 'paused') {
+    // Paused sprint - show Resume button always, Complete button conditionally
+    resumeBtn.style.display = 'block';
+    pauseBtn.classList.remove('pulsing');
+    resumeBtn.classList.add('dimmed');
+    
+    // Show Complete Sprint button if all dev tasks are done
+    if (areAllDevTasksComplete()) {
+      completeBtn.style.display = 'block';
+    }
+  } else if (sprintStatus === 'complete') {
+    // Sprint complete - show New Sprint button
+    newSprintBtn.style.display = 'block';
+  }
+}
+
+function areAllDevTasksComplete() {
+  if (!allTasks || !currentSprintStatus) return false;
+  
+  const currentSprint = currentSprintStatus.sprint;
+  if (!currentSprint) return false;
+  
+  // Get all tasks for current sprint (excluding QA-only tasks)
+  const sprintTasks = [];
+  ['backlog', 'in_dev', 'in_qa', 'done'].forEach(col => {
+    const tasks = allTasks[col] || [];
+    tasks.forEach(task => {
+      if (task.sprint === currentSprint) {
+        sprintTasks.push(task);
+      }
+    });
+  });
+  
+  if (sprintTasks.length === 0) return false;
+  
+  // Check if all non-QA tasks are done or in QA
+  const devTasks = sprintTasks.filter(task => 
+    task.assignee !== 'qa' && task.agent !== 'qa'
+  );
+  
+  const nonQaTasksComplete = devTasks.every(task => 
+    task.status === 'done' || task.status === 'in_qa'
+  );
+  
+  return nonQaTasksComplete && devTasks.length > 0;
+}
+
+async function pauseSprint() {
   try {
-    const response = await fetch('/api/sprint/start', {
+    pauseBtn.disabled = true;
+    pauseBtn.textContent = 'Pausing...';
+    
+    const response = await fetch('/api/sprint/pause' + QS, { method: 'POST' });
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      await loadSprintStatus();
+    } else {
+      alert('Failed to pause sprint: ' + (result.message || 'Unknown error'));
+    }
+  } catch (error) {
+    alert('Error pausing sprint: ' + error.message);
+  } finally {
+    pauseBtn.disabled = false;
+    pauseBtn.textContent = '🔴 ⏸ Pause Sprint';
+  }
+}
+
+async function resumeSprint() {
+  try {
+    resumeBtn.disabled = true;
+    resumeBtn.textContent = 'Resuming...';
+    
+    const response = await fetch('/api/sprint/resume' + QS, { method: 'POST' });
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      await loadSprintStatus();
+    } else {
+      alert('Failed to resume sprint: ' + (result.message || 'Unknown error'));
+    }
+  } catch (error) {
+    alert('Error resuming sprint: ' + error.message);
+  } finally {
+    resumeBtn.disabled = false;
+    resumeBtn.textContent = '🟢 ▶ Resume Sprint';
+  }
+}
+
+async function openCompleteModal() {
+  const summaryData = await fetchJSON('/api/sprint/summary' + QS);
+  if (!summaryData) {
+    alert('Failed to load sprint summary');
+    return;
+  }
+  
+  const content = document.getElementById('sprintSummaryContent');
+  const tasks = summaryData.tasks || {};
+  const completion = summaryData.completion_percentage || 0;
+  const agents = summaryData.agent_performance || {};
+  
+  content.innerHTML = `
+    <div class="sprint-stat-row">
+      <span class="sprint-stat-label">Sprint Progress</span>
+      <span class="sprint-stat-value">${completion}% Complete</span>
+    </div>
+    <div class="sprint-stat-row">
+      <span class="sprint-stat-label">Tasks Completed</span>
+      <span class="sprint-stat-value">${tasks.done || 0}/${Object.values(tasks).reduce((a, b) => a + b, 0)}</span>
+    </div>
+    <div class="sprint-stat-row">
+      <span class="sprint-stat-label">Meetings Held</span>
+      <span class="sprint-stat-value">${summaryData.meetings_held || 0}</span>
+    </div>
+    <div class="sprint-stat-row">
+      <span class="sprint-stat-label">Bugs Found/Fixed</span>
+      <span class="sprint-stat-value">${summaryData.bugs_found || 0}/${summaryData.bugs_fixed || 0}</span>
+    </div>
+    <div class="sprint-stat-row">
+      <span class="sprint-stat-label">Top Performer</span>
+      <span class="sprint-stat-value">${getTopPerformer(agents)}</span>
+    </div>
+  `;
+  
+  sprintCompleteModal.classList.add('open');
+}
+
+function getTopPerformer(agents) {
+  const entries = Object.entries(agents);
+  if (entries.length === 0) return '—';
+  
+  entries.sort((a, b) => b[1] - a[1]);
+  const [agent, count] = entries[0];
+  const agentInfo = AGENT_MAP[agent.toLowerCase()] || { name: agent, emoji: '🤖' };
+  
+  return `${agentInfo.emoji} ${agentInfo.name} (${count} tasks)`;
+}
+
+async function completeSprint() {
+  try {
+    const response = await fetch('/api/sprint/complete' + QS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        goals: goals.split(',').map(g => g.trim()),
-        sprint_number: (state?.project?.sprint || 0) + 1
+      body: JSON.stringify({ project: PROJECT_SLUG })
+    });
+    
+    const result = await response.json();
+    if (result.status === 'success') {
+      closeModal('sprintCompleteModal');
+      await loadSprintStatus();
+      // Refresh data
+      poll();
+    } else {
+      alert('Failed to complete sprint: ' + (result.message || 'Unknown error'));
+    }
+  } catch (error) {
+    alert('Error completing sprint: ' + error.message);
+  }
+}
+
+async function completeAndStartNew() {
+  await completeSprint();
+  // Small delay to ensure state is updated
+  setTimeout(() => {
+    openNewSprintModal();
+  }, 500);
+}
+
+function openNewSprintModal() {
+  // Set sprint number to current + 1
+  const currentSprint = currentSprintStatus?.sprint || 0;
+  document.getElementById('sprintNumber').value = currentSprint + 1;
+  
+  // Clear form
+  document.getElementById('sprintGoals').value = '';
+  
+  // Reset task builder to one empty task
+  const builder = document.getElementById('taskBuilder');
+  builder.innerHTML = createTaskRow();
+  
+  newSprintModal.classList.add('open');
+}
+
+function createTaskRow() {
+  return `
+    <div class="task-item">
+      <div class="task-inputs">
+        <input type="text" class="task-title" placeholder="Task title...">
+        <select class="task-assignee">
+          <option value="architect">🏗️ Architect</option>
+          <option value="frontend">🎨 Frontend</option>
+          <option value="backend">⚙️ Backend</option>
+          <option value="qa">🔍 QA</option>
+        </select>
+        <select class="task-priority">
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <button class="task-remove" type="button" onclick="removeTaskRow(this)">✕</button>
+      </div>
+      <textarea class="task-description" placeholder="Task description (optional)..."></textarea>
+    </div>
+  `;
+}
+
+function addTaskRow() {
+  const builder = document.getElementById('taskBuilder');
+  builder.insertAdjacentHTML('beforeend', createTaskRow());
+}
+
+function removeTaskRow(button) {
+  const taskItem = button.closest('.task-item');
+  const builder = document.getElementById('taskBuilder');
+  
+  // Don't remove if it's the last task
+  if (builder.children.length > 1) {
+    taskItem.remove();
+  } else {
+    // Clear the last task instead
+    taskItem.querySelector('.task-title').value = '';
+    taskItem.querySelector('.task-description').value = '';
+    taskItem.querySelector('.task-assignee').selectedIndex = 0;
+    taskItem.querySelector('.task-priority').value = 'medium';
+  }
+}
+
+async function createNewSprint() {
+  const sprintNumber = parseInt(document.getElementById('sprintNumber').value);
+  const goalsText = document.getElementById('sprintGoals').value.trim();
+  
+  // Parse goals (one per line)
+  const goals = goalsText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => line.replace(/^[•\-*]\s*/, '')); // Remove bullet points
+  
+  // Collect tasks
+  const taskItems = document.querySelectorAll('#taskBuilder .task-item');
+  const tasks = [];
+  
+  for (const item of taskItems) {
+    const title = item.querySelector('.task-title').value.trim();
+    if (!title) continue; // Skip empty tasks
+    
+    tasks.push({
+      title: title,
+      assignee: item.querySelector('.task-assignee').value,
+      priority: item.querySelector('.task-priority').value,
+      description: item.querySelector('.task-description').value.trim() || undefined
+    });
+  }
+  
+  if (tasks.length === 0) {
+    alert('Please add at least one task');
+    return;
+  }
+  
+  try {
+    document.getElementById('startSprintBtn').disabled = true;
+    document.getElementById('startSprintBtn').textContent = 'Starting...';
+    
+    const response = await fetch('/api/sprint/new' + QS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sprint_number: sprintNumber,
+        goals: goals,
+        tasks: tasks,
+        project: PROJECT_SLUG
       })
     });
     
     const result = await response.json();
     
-    if (response.ok) {
-      alert(`Sprint ${result.sprint_number} started successfully!`);
-      await poll(); // Refresh state
+    if (result.status === 'success') {
+      closeModal('newSprintModal');
+      await loadSprintStatus();
+      // Refresh data
+      poll();
+      // Update sprint filter
+      updateSprintFilter();
     } else {
-      alert(`Failed to start sprint: ${result.detail || 'Unknown error'}`);
+      alert('Failed to create sprint: ' + (result.message || 'Unknown error'));
     }
   } catch (error) {
-    alert('Error starting sprint. Please try again.');
-    console.error('Sprint start error:', error);
+    alert('Error creating sprint: ' + error.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = "🚀 Start Sprint";
+    document.getElementById('startSprintBtn').disabled = false;
+    document.getElementById('startSprintBtn').textContent = 'Start Sprint';
   }
 }
 
-async function startMeeting() {
-  const topic = prompt("Enter meeting topic:");
-  if (!topic) return;
+function updateSprintFilter() {
+  const filter = document.getElementById('sprintFilter');
+  const currentOptions = Array.from(filter.options).map(opt => opt.value);
   
-  const btn = document.getElementById('newMeetingBtn');
-  btn.disabled = true;
-  btn.textContent = "🔄 Starting...";
+  // Determine max sprint from current status or from existing tasks
+  let maxSprint = currentSprintStatus?.sprint || 0;
   
-  try {
-    const response = await fetch('/api/meeting/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        topic: topic,
-        participants: ["architect", "frontend", "backend", "qa"]
-      })
+  // Also check tasks to find highest sprint number
+  if (allTasks) {
+    ['backlog', 'in_dev', 'in_qa', 'done'].forEach(col => {
+      const tasks = allTasks[col] || [];
+      tasks.forEach(task => {
+        if (task.sprint && task.sprint > maxSprint) {
+          maxSprint = task.sprint;
+        }
+      });
     });
-    
-    const result = await response.json();
-    
-    if (response.ok) {
-      alert(`Meeting "${topic}" started successfully!`);
-      // Auto-switch to live tab to watch
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      document.querySelector('[data-tab="live"]').classList.add('active');
-      document.getElementById('tab-live').classList.add('active');
-    } else {
-      alert(`Failed to start meeting: ${result.detail || 'Unknown error'}`);
+  }
+  
+  // Add missing sprint options
+  for (let i = 1; i <= maxSprint; i++) {
+    if (!currentOptions.includes(String(i))) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = `Sprint ${i}`;
+      filter.appendChild(option);
     }
-  } catch (error) {
-    alert('Error starting meeting. Please try again.');
-    console.error('Meeting start error:', error);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "📋 New Meeting";
   }
 }
 
-async function logout() {
-  try {
-    const response = await fetch('/auth/logout', { method: 'POST' });
-    if (response.ok) {
-      window.location.href = '/';
-    }
-  } catch (error) {
-    console.error('Logout error:', error);
-    // Force redirect even if request fails
-    window.location.href = '/';
-  }
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('open');
 }
 
-/* === Authentication Check === */
-async function checkAuth() {
-  try {
-    const response = await fetch('/api/auth/status');
-    const result = await response.json();
-    
-    if (!result.authenticated) {
-      window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+// Close modals when clicking outside
+[sprintCompleteModal, newSprintModal].forEach(modal => {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.classList.remove('open');
     }
-  } catch (error) {
-    // If auth check fails, assume not authenticated
-    window.location.href = '/login';
-  }
-}
+  });
+});
 
-// Check auth on load
-checkAuth();
-
-/* === Sprint Status Monitoring === */
-async function checkSprintStatus() {
-  try {
-    const response = await fetch('/api/sprint/status');
-    const result = await response.json();
-    
-    const startBtn = document.getElementById('startSprintBtn');
-    if (result.running) {
-      startBtn.disabled = true;
-      startBtn.textContent = "🔄 Sprint Running";
-    } else {
-      startBtn.disabled = false;
-      startBtn.textContent = "🚀 Start Sprint";
-    }
-  } catch (error) {
-    // Ignore errors in status check
-  }
-}
-
-// Check sprint status periodically
-setInterval(checkSprintStatus, 10000);
-
-/* === Polling === */
+/* === Enhanced Polling === */
 async function poll() {
-  await Promise.all([loadState(), loadTasks()]);
+  await Promise.all([loadState(), loadTasks(), loadSprintStatus()]);
 }
 poll();
 setInterval(poll, 5000);

@@ -17,10 +17,32 @@
     <span class="subtitle" id="projectName">—</span>
   </div>
   <div class="top-bar-right">
-    <button class="action-btn" id="startSprintBtn" onclick="startSprint()">🚀 Start Sprint</button>
-    <button class="action-btn" id="newMeetingBtn" onclick="startMeeting()">📋 New Meeting</button>
     <span class="badge badge-primary" id="sprintBadge">Sprint —</span>
+    <div class="sprint-filter">
+      <select id="sprintFilter" class="sprint-select">
+        <option value="">All Sprints</option>
+        <option value="1">Sprint 1</option>
+        <option value="2">Sprint 2</option>
+      </select>
+    </div>
     <span class="badge badge-outline" id="phaseBadge">—</span>
+    
+    <!-- Sprint Controls -->
+    <div class="sprint-controls" id="sprintControls">
+      <button class="sprint-btn sprint-btn-pause" id="pauseBtn" style="display:none;">
+        🔴 ⏸ Pause Sprint
+      </button>
+      <button class="sprint-btn sprint-btn-resume" id="resumeBtn" style="display:none;">
+        🟢 ▶ Resume Sprint
+      </button>
+      <button class="sprint-btn sprint-btn-complete" id="completeBtn" style="display:none;">
+        ✅ Complete Sprint
+      </button>
+      <button class="sprint-btn sprint-btn-new" id="newSprintBtn" style="display:none;">
+        🚀 New Sprint
+      </button>
+    </div>
+    
     <div class="progress-ring-wrap" id="progressRing">
       <svg viewBox="0 0 36 36" class="progress-ring">
         <circle class="progress-ring-bg" cx="18" cy="18" r="15.9"/>
@@ -30,7 +52,6 @@
     </div>
     <span class="clock mono" id="clock">00:00:00</span>
     <span class="live-dot"></span>
-    <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 </header>
 
@@ -149,11 +170,87 @@
 
 </main>
 
+<!-- Meeting Notification Toast -->
+<div class="meeting-notification" id="meetingNotification">
+  <div class="meeting-notification-content">
+    <span class="meeting-notification-text">🔴 LIVE MEETING IN PROGRESS — Click to watch</span>
+  </div>
+</div>
+
 <!-- Task Detail Modal -->
 <div class="modal-overlay" id="taskModal">
   <div class="modal-card glass-card">
     <button class="modal-close" id="modalClose">✕</button>
     <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Sprint Complete Modal -->
+<div class="modal-overlay" id="sprintCompleteModal">
+  <div class="modal-card glass-card modal-wide">
+    <button class="modal-close" id="completeModalClose">✕</button>
+    <div class="modal-body">
+      <h2 class="modal-title">🏁 Complete Sprint</h2>
+      <div id="sprintSummaryContent" class="sprint-summary-content">
+        <!-- Summary will be populated here -->
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" id="completeOnlyBtn">Complete Sprint</button>
+        <button class="modal-btn modal-btn-primary" id="completeAndNewBtn">Complete & Start Next Sprint</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Sprint Modal -->
+<div class="modal-overlay" id="newSprintModal">
+  <div class="modal-card glass-card modal-wide">
+    <button class="modal-close" id="newSprintModalClose">✕</button>
+    <div class="modal-body">
+      <h2 class="modal-title">🚀 Create New Sprint</h2>
+      <div class="new-sprint-form">
+        <div class="form-row">
+          <label class="form-label">Sprint Number</label>
+          <input type="number" id="sprintNumber" class="form-input" min="1" value="3" readonly>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Goals (one per line)</label>
+          <textarea id="sprintGoals" class="form-textarea" placeholder="Enter sprint goals...
+Example:
+• Implement user authentication
+• Build analytics dashboard
+• Optimize performance"></textarea>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Tasks</label>
+          <div class="task-builder" id="taskBuilder">
+            <div class="task-item">
+              <div class="task-inputs">
+                <input type="text" class="task-title" placeholder="Task title...">
+                <select class="task-assignee">
+                  <option value="architect">🏗️ Architect</option>
+                  <option value="frontend">🎨 Frontend</option>
+                  <option value="backend">⚙️ Backend</option>
+                  <option value="qa">🔍 QA</option>
+                </select>
+                <select class="task-priority">
+                  <option value="high">High</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="low">Low</option>
+                </select>
+                <button class="task-remove" type="button">✕</button>
+              </div>
+              <textarea class="task-description" placeholder="Task description (optional)..."></textarea>
+            </div>
+          </div>
+          <button type="button" id="addTaskBtn" class="add-task-btn">+ Add Task</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-secondary" id="cancelNewSprintBtn">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="startSprintBtn">Start Sprint</button>
+      </div>
+    </div>
   </div>
 </div>
 

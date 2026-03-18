@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🚀 AI DEV TEAM PLATFORM</title>
+<title>🚀 MISSION CONTROL — Select Project</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -21,111 +21,121 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .header .subtitle{color:var(--text-dim);font-size:14px;letter-spacing:6px;text-transform:uppercase;margin-top:8px}
 @keyframes glow{from{filter:drop-shadow(0 0 8px rgba(0,212,255,0.3))}to{filter:drop-shadow(0 0 20px rgba(0,212,255,0.6))}}
 
-/* Auth status */
-.auth-status{position:fixed;top:20px;right:24px;z-index:10;display:flex;align-items:center;gap:12px}
-.login-btn{background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);color:var(--cyan);padding:8px 16px;border-radius:8px;text-decoration:none;font-family:'Orbitron',monospace;font-size:12px;letter-spacing:1px;transition:all 0.3s}
-.login-btn:hover{background:rgba(0,212,255,0.2);border-color:var(--cyan)}
+/* Glitch */
+.glitch{position:relative}
+.glitch::before,.glitch::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%;background:var(--bg)}
+.glitch::before{-webkit-background-clip:text;-webkit-text-fill-color:transparent;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;left:2px;text-shadow:-2px 0 var(--red);clip:rect(44px,9999px,56px,0);animation:glitch-1 5s infinite linear alternate-reverse}
+.glitch::after{-webkit-background-clip:text;-webkit-text-fill-color:transparent;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;left:-2px;text-shadow:2px 0 var(--cyan);clip:rect(44px,9999px,56px,0);animation:glitch-2 5s infinite linear alternate-reverse}
+@keyframes glitch-1{0%{clip:rect(20px,9999px,36px,0)}20%{clip:rect(54px,9999px,70px,0)}40%{clip:rect(2px,9999px,18px,0)}60%{clip:rect(38px,9999px,52px,0)}80%{clip:rect(60px,9999px,80px,0)}100%{clip:rect(10px,9999px,30px,0)}}
+@keyframes glitch-2{0%{clip:rect(65px,9999px,85px,0)}20%{clip:rect(10px,9999px,28px,0)}40%{clip:rect(45px,9999px,65px,0)}60%{clip:rect(5px,9999px,20px,0)}80%{clip:rect(30px,9999px,48px,0)}100%{clip:rect(55px,9999px,75px,0)}}
 
-/* Main content */
-.content{max-width:800px;margin:0 auto;padding:0 24px;position:relative;z-index:2}
+/* Projects grid */
+.projects{max-width:1200px;margin:0 auto;padding:0 24px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px;position:relative;z-index:2}
 
-.intro-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;backdrop-filter:blur(20px);margin-bottom:40px;text-align:center}
-.intro-card h2{font-family:'Orbitron',monospace;font-size:24px;color:var(--cyan);margin-bottom:16px}
-.intro-card p{color:var(--text-dim);line-height:1.6;margin-bottom:20px}
+.project-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;cursor:pointer;transition:all 0.3s ease;backdrop-filter:blur(20px);position:relative;overflow:hidden}
+.project-card:hover{border-color:var(--cyan);transform:translateY(-4px);box-shadow:0 8px 32px rgba(0,212,255,0.15),inset 0 0 30px rgba(0,212,255,0.03)}
+.project-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--green));opacity:0;transition:opacity 0.3s}
+.project-card:hover::before{opacity:1}
 
-.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:40px}
-.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;backdrop-filter:blur(16px)}
-.feature-card .icon{font-size:32px;margin-bottom:12px}
-.feature-card h3{font-family:'Orbitron',monospace;font-size:16px;color:var(--text);margin-bottom:8px}
-.feature-card p{color:var(--text-dim);font-size:14px;line-height:1.5}
+.project-card .emoji{font-size:36px;margin-bottom:12px;display:block}
+.project-card .name{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:var(--cyan);margin-bottom:6px}
+.project-card .desc{color:var(--text-dim);font-size:13px;line-height:1.5;margin-bottom:16px}
 
-.cta-section{text-align:center;margin:60px 0}
-.cta-btn{display:inline-block;background:linear-gradient(135deg,var(--cyan),var(--green));color:var(--bg);padding:16px 32px;border-radius:12px;text-decoration:none;font-family:'Orbitron',monospace;font-size:16px;font-weight:700;letter-spacing:2px;transition:transform 0.3s}
-.cta-btn:hover{transform:translateY(-2px)}
+.project-card .stats{display:flex;gap:16px;flex-wrap:wrap}
+.project-card .stat{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim)}
+.project-card .stat .val{color:var(--green);font-family:'Orbitron',monospace;font-weight:600}
+
+.project-card .phase-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+.phase-badge.development{background:rgba(0,212,255,0.15);color:var(--cyan);border:1px solid rgba(0,212,255,0.3)}
+.phase-badge.architecture{background:rgba(255,184,0,0.15);color:var(--amber);border:1px solid rgba(255,184,0,0.3)}
+.phase-badge.planning{background:rgba(138,43,226,0.15);color:#b388ff;border:1px solid rgba(138,43,226,0.3)}
+
+/* Progress bar in card */
+.progress-wrap{margin-top:16px;background:rgba(255,255,255,0.05);border-radius:8px;height:6px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:8px;transition:width 0.5s ease}
+
+/* Add project card */
+.add-card{border:2px dashed rgba(0,212,255,0.2);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:220px;color:var(--text-dim)}
+.add-card:hover{border-color:var(--cyan);color:var(--cyan)}
+.add-card .plus{font-size:48px;font-weight:300;margin-bottom:8px;line-height:1}
+.add-card .label{font-size:14px;letter-spacing:2px;text-transform:uppercase}
 
 /* Clock */
-.clock{position:fixed;bottom:20px;right:24px;color:var(--text-dim);font-family:'Orbitron',monospace;font-size:12px;z-index:10}
+.clock-bar{position:fixed;top:20px;right:24px;z-index:10;display:flex;align-items:center;gap:12px}
+.clock{font-family:'Orbitron',monospace;font-size:13px;color:var(--text-dim)}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 </style>
 </head>
 <body>
 <div class="grid-bg"></div>
 <div class="scanlines"></div>
 
-<div class="auth-status">
-  <a href="/login" class="login-btn">LOGIN</a>
+<div class="clock-bar">
+  <span class="conn-dot"></span>
+  <span class="clock" id="clock">--:--:--</span>
 </div>
 
 <div class="header">
-  <h1>AI DEV TEAM PLATFORM</h1>
-  <div class="subtitle">Autonomous Development Teams</div>
+  <h1 class="glitch" data-text="MISSION CONTROL">MISSION CONTROL</h1>
+  <div class="subtitle">Universal AI Dev Team Dashboard</div>
 </div>
 
-<div class="content">
-  <div class="intro-card">
-    <h2>🤖 Your AI Development Team</h2>
-    <p>A complete, self-contained AI development team that designs, codes, tests, and ships software autonomously. Watch your AI agents collaborate in real-time.</p>
-  </div>
-
-  <div class="features">
-    <div class="feature-card">
-      <div class="icon">🏗️</div>
-      <h3>Alex - Architect</h3>
-      <p>Designs system architecture, breaks down features into tasks, and ensures technical quality.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">🎨</div>
-      <h3>Frankie - Frontend</h3>
-      <p>Builds beautiful, responsive user interfaces with attention to UX and accessibility.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">⚙️</div>
-      <h3>Blake - Backend</h3>
-      <p>Implements APIs, databases, and business logic with focus on performance and security.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">🔍</div>
-      <h3>Quinn - QA</h3>
-      <p>Tests everything thoroughly, finds bugs, and has veto power over releases.</p>
-    </div>
-  </div>
-
-  <div class="features">
-    <div class="feature-card">
-      <div class="icon">📋</div>
-      <h3>Sprint Management</h3>
-      <p>Automated sprint planning, task assignment, and progress tracking with real-time updates.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">💬</div>
-      <h3>Live Meetings</h3>
-      <p>Watch AI agents discuss, debate, and make decisions in real-time collaborative meetings.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">📊</div>
-      <h3>Real-time Dashboard</h3>
-      <p>Cyberpunk-styled mission control interface with live agent status and project metrics.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">🚀</div>
-      <h3>One-Click Deploy</h3>
-      <p>Deploy anywhere with Docker. Just add your Anthropic API key and start building.</p>
-    </div>
-  </div>
-
-  <div class="cta-section">
-    <a href="/login" class="cta-btn">START BUILDING</a>
+<div class="projects" id="projects">
+  <div class="project-card add-card" onclick="alert('Coming soon — tell P.R.I.N.T. to create a new project!')">
+    <span class="plus">+</span>
+    <span class="label">New Project</span>
   </div>
 </div>
-
-<div class="clock" id="clock">--:--:--</div>
 
 <script>
+const WORKSPACE = '/api/projects';
+
 function updateClock(){
   const now = new Date();
   document.getElementById('clock').textContent = now.toLocaleTimeString('en-US',{hour12:false});
 }
 setInterval(updateClock,1000);
 updateClock();
+
+async function loadProjects(){
+  try{
+    const res = await fetch('/api/projects');
+    const data = await res.json();
+    const container = document.getElementById('projects');
+    
+    // Clear existing project cards (keep add card)
+    const addCard = container.querySelector('.add-card');
+    container.innerHTML = '';
+    
+    data.projects.forEach(p => {
+      const progress = p.tasks_total > 0 ? Math.round((p.tasks_done / p.tasks_total) * 100) : 0;
+      const card = document.createElement('div');
+      card.className = 'project-card';
+      card.onclick = () => window.location.href = `/project/${p.slug}`;
+      card.innerHTML = `
+        <span class="emoji">${p.emoji || '📦'}</span>
+        <div class="phase-badge ${(p.phase||'').toLowerCase()}">${p.phase || 'Unknown'}</div>
+        <div class="name">${p.name}</div>
+        <div class="desc">${p.description || ''}</div>
+        <div class="stats">
+          <div class="stat">📦 Tasks: <span class="val">${p.tasks_done}/${p.tasks_total}</span></div>
+          <div class="stat">👥 Agents: <span class="val">${p.agents_active}</span></div>
+          <div class="stat">🏃 Sprint: <span class="val">${p.sprint || '—'}</span></div>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill" style="width:${progress}%"></div></div>
+      `;
+      container.appendChild(card);
+    });
+    
+    container.appendChild(addCard);
+  }catch(e){
+    console.error('Failed to load projects:', e);
+  }
+}
+
+loadProjects();
+setInterval(loadProjects, 10000);
 </script>
 </body>
 </html>

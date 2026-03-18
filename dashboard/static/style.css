@@ -68,29 +68,123 @@ body {
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-/* Action buttons */
-.action-btn {
-  font-family: var(--font-head); font-size: 0.65rem; letter-spacing: 1px;
-  padding: 6px 12px; background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3);
-  color: var(--primary); cursor: pointer; border-radius: var(--radius-badge);
-  transition: all .3s; text-transform: uppercase;
+/* === Sprint Filter === */
+.sprint-filter { position: relative; }
+.sprint-select {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  padding: 3px 20px 3px 8px; border-radius: var(--radius-badge);
+  background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.2);
+  color: var(--primary); appearance: none; cursor: pointer;
+  transition: all 0.2s ease; min-width: 100px;
 }
-.action-btn:hover { 
-  background: rgba(0,212,255,0.2); border-color: var(--primary); 
-  transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,212,255,0.2);
-}
-.action-btn:disabled {
-  opacity: 0.5; cursor: not-allowed; transform: none;
+.sprint-select:hover { background: rgba(0, 212, 255, 0.15); }
+.sprint-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2); }
+.sprint-filter::after {
+  content: '▼'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  color: var(--primary); font-size: 0.5rem; pointer-events: none;
 }
 
-.logout-btn {
-  font-family: var(--font-mono); font-size: 0.6rem;
-  padding: 4px 8px; background: rgba(255,51,102,0.1); border: 1px solid rgba(255,51,102,0.3);
-  color: var(--danger); cursor: pointer; border-radius: var(--radius-badge);
-  transition: all .3s;
+/* === Sprint Controls === */
+.sprint-controls { display: flex; align-items: center; gap: 8px; }
+.sprint-btn {
+  font-family: var(--font-head); font-size: 0.65rem; font-weight: 600;
+  padding: 6px 12px; border-radius: var(--radius-badge); border: none;
+  cursor: pointer; transition: all 0.3s ease; letter-spacing: 0.5px;
+  background: var(--surface); backdrop-filter: blur(16px);
+  position: relative; overflow: hidden;
 }
-.logout-btn:hover {
-  background: rgba(255,51,102,0.2); border-color: var(--danger);
+
+.sprint-btn::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  padding: 1px; background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: exclude; mask-composite: exclude;
+  opacity: 0; transition: opacity 0.3s ease;
+}
+.sprint-btn:hover::before { opacity: 1; }
+
+/* Pause Button */
+.sprint-btn-pause {
+  border: 1px solid rgba(255, 51, 102, 0.3);
+  color: var(--danger); box-shadow: 0 0 20px rgba(255, 51, 102, 0.05);
+}
+.sprint-btn-pause:hover {
+  border-color: rgba(255, 51, 102, 0.5);
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.15), 0 0 40px rgba(255, 51, 102, 0.08);
+  transform: translateY(-1px);
+}
+.sprint-btn-pause.pulsing {
+  animation: pause-pulse 2s ease-in-out infinite;
+}
+@keyframes pause-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(255, 51, 102, 0.1); }
+  50% { box-shadow: 0 0 30px rgba(255, 51, 102, 0.2), 0 0 50px rgba(255, 51, 102, 0.1); }
+}
+
+/* Resume Button */
+.sprint-btn-resume {
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  color: var(--success); box-shadow: 0 0 20px rgba(0, 255, 136, 0.05);
+}
+.sprint-btn-resume:hover {
+  border-color: rgba(0, 255, 136, 0.5);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.15), 0 0 40px rgba(0, 255, 136, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Complete Button */
+.sprint-btn-complete {
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: var(--primary); box-shadow: 0 0 20px rgba(0, 212, 255, 0.05);
+}
+.sprint-btn-complete:hover {
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.15), 0 0 40px rgba(0, 212, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+/* New Sprint Button */
+.sprint-btn-new {
+  border: 1px solid rgba(255, 184, 0, 0.3);
+  color: var(--warning); box-shadow: 0 0 20px rgba(255, 184, 0, 0.05);
+}
+.sprint-btn-new:hover {
+  border-color: rgba(255, 184, 0, 0.5);
+  box-shadow: 0 0 20px rgba(255, 184, 0, 0.15), 0 0 40px rgba(255, 184, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Dimmed state for paused */
+.sprint-btn.dimmed {
+  opacity: 0.6; filter: grayscale(0.3);
+}
+
+/* === Meeting Notification === */
+.meeting-notification {
+  position: fixed; top: 52px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; opacity: 0; visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+}
+.meeting-notification.show {
+  opacity: 1; visibility: visible;
+  animation: slideInGlow 0.6s ease-out;
+}
+.meeting-notification-content {
+  padding: 12px 24px; border-radius: 8px;
+  background: rgba(255, 51, 102, 0.15);
+  border: 1px solid rgba(255, 51, 102, 0.3);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(255, 51, 102, 0.2);
+}
+.meeting-notification-text {
+  font-family: var(--font-head); font-size: 0.75rem; font-weight: 600;
+  color: var(--danger); letter-spacing: 1px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes slideInGlow {
+  0% { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+  100% { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
 /* === Tab Bar === */
@@ -384,13 +478,14 @@ body {
 .modal-overlay.open { opacity: 1; pointer-events: auto; }
 .modal-card {
   width: 90%; max-width: 480px;
-  background: rgba(15,20,40,0.92); border: 1px solid rgba(0,212,255,0.15);
+  background: rgba(15,20,40,0.95); border: 1px solid rgba(0,212,255,0.2);
   border-radius: 16px; padding: 24px; position: relative;
   backdrop-filter: blur(24px);
   box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 60px rgba(0,212,255,0.05);
-  transform: translateY(10px); transition: transform .25s;
+  transform: translateY(10px) scale(0.95); transition: transform .25s;
 }
-.modal-overlay.open .modal-card { transform: translateY(0); }
+.modal-overlay.open .modal-card { transform: translateY(0) scale(1); }
+.modal-card.modal-wide { max-width: 720px; }
 .modal-close {
   position: absolute; top: 12px; right: 14px;
   background: none; border: none; color: var(--text-dim);
@@ -398,6 +493,110 @@ body {
   transition: color .2s;
 }
 .modal-close:hover { color: var(--text); }
+
+.modal-title {
+  font-family: var(--font-head); font-size: 1.1rem; font-weight: 600;
+  margin-bottom: 20px; letter-spacing: 0.5px; color: var(--text);
+}
+
+/* Sprint Summary Modal */
+.sprint-summary-content {
+  margin-bottom: 24px; padding: 16px; border-radius: 8px;
+  background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+}
+.sprint-stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.8rem;
+}
+.sprint-stat-row:last-child { border-bottom: none; }
+.sprint-stat-label { color: var(--text-dim); }
+.sprint-stat-value { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
+
+/* Form Elements */
+.new-sprint-form { margin-bottom: 24px; }
+.form-row { margin-bottom: 16px; }
+.form-label {
+  display: block; font-family: var(--font-head); font-size: 0.7rem;
+  color: var(--text-dim); margin-bottom: 6px; letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.form-input, .form-textarea {
+  width: 100%; padding: 8px 12px; border-radius: 8px;
+  background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+  color: var(--text); font-family: var(--font-body); font-size: 0.8rem;
+  transition: border-color 0.2s ease;
+}
+.form-input:focus, .form-textarea:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+}
+.form-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+/* Task Builder */
+.task-builder { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.task-item {
+  margin-bottom: 12px; padding: 12px; border-radius: 8px;
+  background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+}
+.task-inputs {
+  display: grid; grid-template-columns: 2fr auto auto auto; gap: 8px;
+  margin-bottom: 8px; align-items: center;
+}
+.task-title, .task-assignee, .task-priority {
+  padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: rgba(0,0,0,0.3); color: var(--text); font-size: 0.75rem;
+}
+.task-title { font-weight: 500; }
+.task-assignee, .task-priority { font-family: var(--font-mono); }
+.task-remove {
+  background: rgba(255, 51, 102, 0.1); border: 1px solid rgba(255, 51, 102, 0.2);
+  color: var(--danger); border-radius: 4px; padding: 4px 8px;
+  cursor: pointer; font-size: 0.7rem; transition: all 0.2s ease;
+}
+.task-remove:hover {
+  background: rgba(255, 51, 102, 0.2); border-color: rgba(255, 51, 102, 0.4);
+}
+.task-description {
+  width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: rgba(0,0,0,0.3); color: var(--text); font-size: 0.75rem;
+  resize: vertical; min-height: 60px; font-family: var(--font-body);
+}
+.add-task-btn {
+  width: 100%; padding: 8px; border: 1px dashed var(--border);
+  background: transparent; color: var(--text-dim); border-radius: 6px;
+  cursor: pointer; font-size: 0.75rem; transition: all 0.2s ease;
+}
+.add-task-btn:hover {
+  border-color: var(--primary); color: var(--primary);
+  background: rgba(0, 212, 255, 0.05);
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex; gap: 12px; justify-content: flex-end;
+}
+.modal-btn {
+  font-family: var(--font-head); font-size: 0.75rem; font-weight: 600;
+  padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+  transition: all 0.3s ease; letter-spacing: 0.5px;
+}
+.modal-btn-primary {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.8), rgba(0, 212, 255, 0.6));
+  color: var(--bg); border: 1px solid rgba(0, 212, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+}
+.modal-btn-primary:hover {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.9), rgba(0, 212, 255, 0.7));
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.3);
+  transform: translateY(-1px);
+}
+.modal-btn-secondary {
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+}
+.modal-btn-secondary:hover {
+  background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15);
+  transform: translateY(-1px);
+}
 
 .modal-body .modal-id { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); margin-bottom: 4px; }
 .modal-body .modal-title { font-family: var(--font-head); font-size: 1rem; font-weight: 600; margin-bottom: 14px; letter-spacing: 0.5px; }
